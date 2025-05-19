@@ -29,7 +29,7 @@ This project analyzes central bank speeches to uncover patterns, trends, and top
    ```bash
    pip install -r requirements.txt
    ```
-4. Log in to HF to download the dataset:
+4. Log in to HuggingFace to authenticate the dataset download:
    ```bash
    huggingface-cli login
    ```
