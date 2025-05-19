@@ -43,5 +43,5 @@ This project analyzes central bank speeches to uncover patterns, trends, and top
 
 ## Saved Folder (created at runtime)
 
-- /plots saves the graphs in `png` and `pdf` format.
-- /bertopic saves the `BERTopic` models as `safetensors`.
+- `/plots` saves the graphs in `png` and `pdf` format.
+- `/models` saves the `BERTopic` models as `safetensors`.
