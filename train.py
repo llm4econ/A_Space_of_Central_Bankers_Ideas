@@ -95,7 +95,10 @@ def plot_bar_chart(data, x_label, y_label, title, output_dir, filename, kind='ba
     print("Saved to", pdf_path)
     plt.show()
 
-df = pd.read_parquet(r'central_bank_speeches_May2025.parquet')
+os.makedirs("plots", exist_ok=True)
+os.makedirs("bertopic_models", exist_ok=True)
+
+df = pd.read_parquet("hf://datasets/tpark-bis/central_bank_speeches/central_bank_speeches.parquet")
 df.drop(columns=["topic_vector"], inplace=True)
 output_dir = "plots"
 
@@ -119,7 +122,6 @@ plot_bar_chart(counts_by_year, "Year", "# of speeches", "", output_dir, "fig_sta
 
 top_authors = df['speaker'].value_counts().head(10)
 plot_bar_chart(top_authors, "# of speeches", "Speaker", "", output_dir, "fig_stat_by_speaker", kind='barh', horizontal=True)
-
 
 
 
@@ -173,12 +175,6 @@ df_topic = pd.merge(df_topic, top_30_df, how='left', left_index=True, right_inde
 df_res = pd.DataFrame({'Topic': topics, 'Probability': probabilities})
 df_res = df_res.merge(df_topic, how='left', on='Topic')
 major_bank = pd.merge(major_bank, df_res, left_index=True, right_index=True, how='left')
-datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
-major_bank.to_parquet(f'Major_Bank_Topics_{datetime_now}.parquet', index=False)
-print(f'Major_Bank_Topics_{datetime_now}.parquet')
-graph1 = major_bank[['date', 'title', 'summary', 'speaker', 'affiliation', 'x', 'y', 'Name', 'Representation', 'topic_vector', 'Probability']]
-graph1.to_excel(f'Graph1_major_banks_{datetime_now}.xlsx', index=False)
-print(f'Graph1_major_banks_{datetime_now}.xlsx')
 
 file_path = r'Major_Bank_Topics_20250511_234633.parquet'
 df_major_topic = major_bank
@@ -430,6 +426,7 @@ custom_colors = [
     "#17becf"
 ]
 
+
 name_to_color = {name: custom_colors[i % len(custom_colors)] for i, name in enumerate(unique_names)}
 
 plot_data['date_num'] = date2num(plot_data['date'])
@@ -521,16 +518,10 @@ for i in range(len(topic_model.generate_topic_labels())):
     top_30_df = pd.concat([top_30_df, pd.DataFrame({"topic_vector": [lst_top_terms]})], ignore_index=True)
 
 df_topic_ecb = pd.merge(df_topic_ecb, top_30_df, how='left', left_index=True, right_index=True)
-df_topic_ecb.to_excel('ecb_topic_to_review.xlsx', index=False)
 
 df_res = pd.DataFrame({'Topic': topics, 'Probability': probabilities})
 df_res = df_res.merge(df_topic_ecb, how='left', on='Topic')
 ecb = pd.merge(ecb, df_res, left_index=True, right_index=True, how='left')
-
-datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
-ecb.to_parquet(f'ECB_Topics_{datetime_now}.parquet', index=False)
-
-#ecb = pd.read_parquet('ECB_Topics_20250512_215059.parquet')
 
 df_ecb_topic_list = df_topic_ecb[['Name', 'topic_vector', 'Topic']]
 df_ecb_topic_list = df_ecb_topic_list.drop_duplicates(subset=['Topic'])
@@ -624,19 +615,9 @@ def plot_ecb_topics(ecb, topic_to_label, output_dir, filename):
     print(f"Saved to {pdf_path}")
     plt.show()
 
-    datetime_now = datetime.now().strftime("%Y%m%d_%H%M%S")
-    ecb.to_parquet(f'ECB_Topics_Labels_{datetime_now}.parquet', index=False)
-    print(f'ECB_Topics_Labels_{datetime_now}.parquet')
     return ecb
 
 ecb = plot_ecb_topics(ecb, topic_to_label, output_dir="plots", filename="fig_ecb_topics")
-
-
-
-
-
-#ecb = pd.read_parquet('ECB_Topics_Labels_20250512_235122.parquet')
-
 ecb_mp = ecb[
     (ecb["Name"].str.contains(r"\b(0_|2_|4_|5_|7_|13_|14_)", regex=True)) &
     (~ecb["Name"].str.startswith("-1_"))
@@ -701,7 +682,7 @@ fig = px.scatter_3d(
     hover_data=['title', 'Name']
 )
 fig.update_layout(legend_title_text='Name')
-fig.write_html('3d_plot_ecb_mp.html')
+fig.write_html(f'{output_dir}/3d_plot_ecb_mp.html')
 
 plot_data = ecb_mp.copy()
 plot_data['date'] = pd.to_datetime(plot_data['date'])
@@ -761,7 +742,7 @@ fig.savefig(png_path, format='png', dpi=300, bbox_inches='tight')
 
 print("Saved to", pdf_path)
 
-file_path = "fred_data.csv"  # Path to your local file
+file_path = "euro_area_cpi.csv"  # Path to your local file
 df = pd.read_csv(file_path, index_col=0, parse_dates=True)  # Load the data, parsing the index as dates
 
 
@@ -780,7 +761,7 @@ ax.grid(True)
 plt.tight_layout()
 plt.show()
 
-output_dir = "./"
+
 pdf_path = f'{output_dir}/ecb_inflation.pdf'
 png_path = f'{output_dir}/ecb_inflation.png'
 fig.savefig(pdf_path, format='pdf', bbox_inches='tight')

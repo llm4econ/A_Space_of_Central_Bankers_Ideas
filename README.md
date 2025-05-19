@@ -25,6 +25,10 @@ This project analyzes central bank speeches to uncover patterns, trends, and top
    ```bash
    pip install -r requirements.txt
    ```
+4. Log in to HF to download the dataset:
+   ```bash
+   huggingface-cli login
+   ```
 
 ## Main Files
 - train.py: The main script for topic modeling, visualization, and data export.
@@ -32,3 +36,8 @@ This project analyzes central bank speeches to uncover patterns, trends, and top
 - metadata.jsonld: Metadata describing the dataset structure and fields.
 - requirements.txt: Lists all dependencies required for the project.
 - ecb_inflation.pdf: Example output showing inflation trends in the Euro Area.
+
+## Saved Folder (created at runtime)
+
+- /plots saves the graphs in `png` and `pdf` format.
+- /bertopic saves the `BERTopic` models as `safetensors`.
