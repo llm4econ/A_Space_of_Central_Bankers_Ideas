@@ -5,6 +5,8 @@
 
 This project analyzes central bank speeches to uncover patterns, trends, and topics of interest. Using advanced natural language processing (NLP) techniques, such as BERTopic and UMAP, it clusters and visualizes speech data to provide insights into central bank policies and economic discussions.
 
+![3D Topic Visualization](3d_topic.png)
+
 ## Features
 
 - **Topic Modeling**: Extracts topics from central bank speeches using BERTopic.
