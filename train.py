@@ -90,7 +90,7 @@ os.makedirs("bertopic_models", exist_ok=True)
 df = pd.read_parquet("hf://datasets/tpark-bis/central_bank_speeches/central_bank_speeches.parquet")
 df.drop(columns=["topic_vector"], inplace=True)
 output_dir_plots = "plots"
-output_dir_models = "plots"
+output_dir_models = "bertopic_models"
 
 central_bank_counts = df['country_iso2'].value_counts()
 formatted_list = [f"{bank} ({count})" for bank, count in central_bank_counts.items()]
