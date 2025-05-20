@@ -276,7 +276,7 @@
                     "@type": "cr:Field",
                     "@id": "default/topic_vector",
                     "dataType": "sc:Text",
-                    "description": "Genereated labels from BERTopic's function generate_topics_labels(). Some values are 'null' as only the ",
+                    "description": "Genereated labels from BERTopic's function generate_topics_labels(). Some values are 'null' as only the 40 major central banks were included for topics modelling",
                     "source": {
                         "fileSet": {
                             "@id": "parquet-files-for-config-default"
