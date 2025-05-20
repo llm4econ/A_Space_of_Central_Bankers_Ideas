@@ -45,3 +45,8 @@ This project analyzes central bank speeches to uncover patterns, trends, and top
 
 - `/plots` saves the graphs in `png` and `pdf` format.
 - `/models` saves the `BERTopic` models as `safetensors`.
+
+## Notes
+
+Topic modeling using `BERTopic` is non-deterministic. Consequently, custom string mappings used in the code to clarify topic names may vary across different runs. To address this, we have included them as placeholders and encourage new users to adapt and create their own mappings as needed.
+

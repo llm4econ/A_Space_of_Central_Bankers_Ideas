@@ -179,7 +179,9 @@ df_major_topic_list = df_major_topic_list.drop_duplicates(subset=['Topic'])
 df_major_topic_list.reset_index(drop=True, inplace=True)
 df_major_topic_list = df_major_topic_list.sort_values(by='Topic')
 
-name_to_label = {
+
+### PLACEHOLDER - Create your own mappings here
+NAME_TO_LABEL = {
     "-1_Financial stability policies": "General",
     "0_Euro Area Stability": "ECB",
     "1_Federal Reserve Policy": "Fed",
@@ -521,7 +523,9 @@ df_ecb_topic_list = df_ecb_topic_list.drop_duplicates(subset=['Topic'])
 df_ecb_topic_list.reset_index(drop=True, inplace=True)
 df_ecb_topic_list = df_ecb_topic_list.sort_values(by='Topic')
 
-topic_to_label = {
+
+### PLACEHOLDER - Create your own mappings here
+TOPIC_TO_LABEL = {
     -1: "General",
      0: "Monetary policy",
      1: "Financial stability",
@@ -610,7 +614,7 @@ def plot_ecb_topics(ecb, topic_to_label, output_dir, filename):
 
     return ecb
 
-ecb = plot_ecb_topics(ecb, topic_to_label, output_dir="plots", filename="fig_ecb_topics")
+ecb = plot_ecb_topics(ecb, TOPIC_TO_LABEL, output_dir="plots", filename="fig_ecb_topics")
 ecb_mp = ecb[
     (ecb["Name"].str.contains(r"\b(0_|2_|4_|5_|7_|13_|14_)", regex=True)) &
     (~ecb["Name"].str.startswith("-1_"))
