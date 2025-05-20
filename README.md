@@ -34,9 +34,9 @@ This project analyzes central bank speeches to uncover patterns, trends, and top
    huggingface-cli login
    ```
 
-## Main Files
+## Files
 - `train.py`: The main script for topic modeling, visualization, and data export.
-- `save_file.py`: Downloads and saves Euro Area CPI data from the FRED API.
+- `euro_area_cpi.csv`: Monthly inflation of the Euro area from Federal Reserve Bank of St. Louis (FRED).
 - `metadata.jsonld`: Metadata describing the dataset structure and fields.
 - `requirements.txt`: Lists all dependencies required for the project.
 
