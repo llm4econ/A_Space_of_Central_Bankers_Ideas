@@ -40,7 +40,6 @@ def bertopic_modeling(
     umap_metric='euclidean',
     umap_random_state=42,
     embedding_model_name="BAAI/bge-base-en-v1.5",
-    openai_model="gpt-4o-mini"
 ):
     embedding_model = SentenceTransformer(embedding_model_name, trust_remote_code=True)
     umap_model = UMAP(
@@ -59,10 +58,6 @@ def bertopic_modeling(
     )
     vectorizer_model = CountVectorizer(stop_words="english", ngram_range=n_gram_range)
     ctfidf_model = ClassTfidfTransformer()
-    # representation_model = None
-    # if os.environ["OPENAI_API_KEY"]:
-    #     client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-    #     representation_model = OpenAI(client, model=openai_model, delay_in_seconds=0, chat=True)
     representation_model = KeyBERTInspired()
     topic_model = BERTopic(
         embedding_model=embedding_model,
@@ -146,7 +141,6 @@ topic_model, topics, probabilities = bertopic_modeling(
     umap_min_dist=0,
     umap_metric='euclidean',
     umap_random_state=23,
-    openai_model="gpt-4.1-mini"
 )
 
 df_topic = topic_model.get_topic_info()
@@ -491,7 +485,6 @@ topic_model, topics, probabilities = bertopic_modeling(
     umap_min_dist=0,
     umap_metric='euclidean',
     umap_random_state=42,
-    openai_model="gpt-4.1-mini"
 )
 
 df_topic_ecb = topic_model.get_topic_info()
@@ -638,7 +631,6 @@ topic_model, topics, probabilities = bertopic_modeling(
     umap_min_dist=0.1,
     umap_metric='euclidean',
     umap_random_state=61,
-    openai_model="gpt-4.1-mini"
 )
 
 df_topic_ecb_mp = topic_model.get_topic_info()
