@@ -35,11 +35,10 @@ This project analyzes central bank speeches to uncover patterns, trends, and top
    ```
 
 ## Main Files
-- train.py: The main script for topic modeling, visualization, and data export.
-- save_file.py: Downloads and saves Euro Area CPI data from the FRED API.
-- metadata.jsonld: Metadata describing the dataset structure and fields.
-- requirements.txt: Lists all dependencies required for the project.
-- ecb_inflation.pdf: Example output showing inflation trends in the Euro Area.
+- `train.py`: The main script for topic modeling, visualization, and data export.
+- `save_file.py`: Downloads and saves Euro Area CPI data from the FRED API.
+- `metadata.jsonld`: Metadata describing the dataset structure and fields.
+- `requirements.txt`: Lists all dependencies required for the project.
 
 ## Saved Folder (created at runtime)
 
