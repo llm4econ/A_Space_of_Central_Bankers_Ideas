@@ -85,12 +85,12 @@ def plot_bar_chart(data, x_label, y_label, title, output_dir, filename, kind='ba
     print("Saved to", pdf_path)
 
 os.makedirs("plots", exist_ok=True)
-os.makedirs("bertopic_models", exist_ok=True)
+os.makedirs("models", exist_ok=True)
 
 df = pd.read_parquet("hf://datasets/tpark-bis/central_bank_speeches/central_bank_speeches.parquet")
 df.drop(columns=["topic_vector"], inplace=True)
 output_dir_plots = "plots"
-output_dir_models = "bertopic_models"
+output_dir_models = "models"
 
 central_bank_counts = df['country_iso2'].value_counts()
 formatted_list = [f"{bank} ({count})" for bank, count in central_bank_counts.items()]
