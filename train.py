@@ -9,21 +9,16 @@ import matplotlib.dates as mdates
 from matplotlib.dates import date2num, num2date
 from matplotlib import cm
 import matplotlib.patheffects as pe
-from pandas_datareader import data as pdr
 import plotly.express as px
-import nltk
 from dotenv import load_dotenv
 
 from bertopic import BERTopic
-from bertopic.representation import OpenAI, KeyBERTInspired
+from bertopic.representation import KeyBERTInspired
 from bertopic.vectorizers import ClassTfidfTransformer
 from sentence_transformers import SentenceTransformer
 from sklearn.feature_extraction.text import CountVectorizer
 from umap import UMAP
 from hdbscan import HDBSCAN
-
-import openai
-from langchain_openai import OpenAI
 
 
 load_dotenv()
@@ -88,14 +83,14 @@ def plot_bar_chart(data, x_label, y_label, title, output_dir, filename, kind='ba
     plt.savefig(pdf_path, format='pdf', bbox_inches='tight')
     plt.savefig(png_path, format='png', dpi=300, bbox_inches='tight')
     print("Saved to", pdf_path)
-    plt.show()
 
 os.makedirs("plots", exist_ok=True)
 os.makedirs("bertopic_models", exist_ok=True)
 
 df = pd.read_parquet("hf://datasets/tpark-bis/central_bank_speeches/central_bank_speeches.parquet")
 df.drop(columns=["topic_vector"], inplace=True)
-output_dir = "plots"
+output_dir_plots = "plots"
+output_dir_models = "plots"
 
 central_bank_counts = df['country_iso2'].value_counts()
 formatted_list = [f"{bank} ({count})" for bank, count in central_bank_counts.items()]
@@ -108,15 +103,15 @@ df_affiliation['Count'] = df_affiliation['Count'].astype(int)
 
 df_affiliation = df_affiliation.set_index('Central bank')
 central_bank_counts = df_affiliation['Count'].sort_values(ascending=False).head(10)
-plot_bar_chart(central_bank_counts, "Location of central bank", "# of speeches", "", output_dir, "fig_stat_by_cb", kind='bar')
+plot_bar_chart(central_bank_counts, "Location of central bank", "# of speeches", "", output_dir_plots, "fig_stat_by_cb", kind='bar')
 
 df['date'] = pd.to_datetime(df['date'])
 counts_by_year = df['date'].dt.year.value_counts().sort_index()
 counts_by_year.index = counts_by_year.index.map(lambda x: f"{x % 100:02d}")
-plot_bar_chart(counts_by_year, "Year", "# of speeches", "", output_dir, "fig_stat_by_year", kind='bar')
+plot_bar_chart(counts_by_year, "Year", "# of speeches", "", output_dir_plots, "fig_stat_by_year", kind='bar')
 
 top_authors = df['speaker'].value_counts().head(10)
-plot_bar_chart(top_authors, "# of speeches", "Speaker", "", output_dir, "fig_stat_by_speaker", kind='barh', horizontal=True)
+plot_bar_chart(top_authors, "# of speeches", "Speaker", "", output_dir_plots, "fig_stat_by_speaker", kind='barh', horizontal=True)
 
 
 
@@ -150,7 +145,7 @@ df_reduced_embeddings = pd.DataFrame(reduced_embeddings, columns=['x', 'y'])
 major_bank['x'] = df_reduced_embeddings['x']
 major_bank['y'] = df_reduced_embeddings['y']
 current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-model_name = f"G1_model_{current_datetime}"
+model_name = f"{output_dir_models}/G1_model_{current_datetime}"
 topic_model.save(model_name, serialization="safetensors")
 print(model_name)
 
@@ -299,11 +294,10 @@ ax.legend(handles_sorted, labels_sorted, bbox_to_anchor=(0.5, 0.05), loc='upper 
 
 plt.subplots_adjust(bottom=0.28)
 
-pdf_path = f'{output_dir}/fig_global_topic.pdf'
-png_path = f'{output_dir}/fig_global_topic.png'
+pdf_path = f'{output_dir_plots}/fig_global_topic.pdf'
+png_path = f'{output_dir_plots}/fig_global_topic.png'
 fig.savefig(pdf_path, format='pdf', bbox_inches='tight')
 fig.savefig(png_path, format='png', dpi=300, bbox_inches='tight')
-plt.show()
 print("Saved to", pdf_path)
 
 prefixes = ('18_', '45_', '25_', '5_', '21_', '7_')
@@ -392,11 +386,10 @@ ax.set_ylabel('')
 plt.tight_layout(rect=[0, 0.05, 0.95, 1])
 plt.subplots_adjust(bottom=0.28)
 
-pdf_path = f'{output_dir}/topic_by_cb.pdf'
-png_path = f'{output_dir}/topic_by_cb.png'
+pdf_path = f'{output_dir_plots}/topic_by_cb.pdf'
+png_path = f'{output_dir_plots}/topic_by_cb.png'
 fig.savefig(pdf_path, format='pdf', bbox_inches='tight')
 fig.savefig(png_path, format='png', dpi=300, bbox_inches='tight')
-plt.show()
 
 print("Saved to", pdf_path)
 
@@ -459,13 +452,11 @@ ax.set_yticklabels(date_labels)
 ax.grid(True)
 
 plt.tight_layout()
-plt.show()
 
-pdf_path = f'{output_dir}/3d_topic.pdf'
-png_path = f'{output_dir}/3d_topic.png'
+pdf_path = f'{output_dir_plots}/3d_topic.pdf'
+png_path = f'{output_dir_plots}/3d_topic.png'
 fig.savefig(pdf_path, format='pdf', bbox_inches='tight')
 fig.savefig(png_path, format='png', dpi=300, bbox_inches='tight')
-plt.show()
 
 print("Saved to", pdf_path)
 
@@ -497,7 +488,7 @@ ecb['x'] = df_reduced_embeddings_ecb['x']
 ecb['y'] = df_reduced_embeddings_ecb['y']
 
 current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-model_name = f"G2A_model_{current_datetime}"
+model_name = f"{output_dir_models}/G2A_model_{current_datetime}"
 topic_model.save(model_name, serialization="safetensors")
 print(model_name)
 
@@ -610,7 +601,6 @@ def plot_ecb_topics(ecb, topic_to_label, output_dir, filename):
     plt.savefig(pdf_path, format='pdf', bbox_inches='tight')
     plt.savefig(png_path, format='png', dpi=300, bbox_inches='tight')
     print(f"Saved to {pdf_path}")
-    plt.show()
 
     return ecb
 
@@ -678,7 +668,7 @@ fig = px.scatter_3d(
     hover_data=['title', 'Name']
 )
 fig.update_layout(legend_title_text='Name')
-fig.write_html(f'{output_dir}/3d_plot_ecb_mp.html')
+fig.write_html(f'{output_dir_plots}/3d_plot_ecb_mp.html')
 
 plot_data = ecb_mp.copy()
 plot_data['date'] = pd.to_datetime(plot_data['date'])
@@ -729,10 +719,9 @@ ax.grid(True)
 
 plt.subplots_adjust(left=0.05, right=0.95, bottom=0.05, top=0.95)
 plt.tight_layout()
-plt.show()
 
-pdf_path = f'{output_dir}/ecb_mp_3d.pdf'
-png_path = f'{output_dir}/ecb_mp_3d.png'
+pdf_path = f'{output_dir_plots}/ecb_mp_3d.pdf'
+png_path = f'{output_dir_plots}/ecb_mp_3d.png'
 fig.savefig(pdf_path, format='pdf', bbox_inches='tight')
 fig.savefig(png_path, format='png', dpi=300, bbox_inches='tight')
 
@@ -755,11 +744,10 @@ ax.set_ylabel("YoY Change (%)")
 ax.axhline(0, color='black', linestyle='--', linewidth=0.8)
 ax.grid(True)
 plt.tight_layout()
-plt.show()
 
 
-pdf_path = f'{output_dir}/ecb_inflation.pdf'
-png_path = f'{output_dir}/ecb_inflation.png'
+pdf_path = f'{output_dir_plots}/ecb_inflation.pdf'
+png_path = f'{output_dir_plots}/ecb_inflation.png'
 fig.savefig(pdf_path, format='pdf', bbox_inches='tight')
 fig.savefig(png_path, format='png', dpi=300, bbox_inches='tight')
 
