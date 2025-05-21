@@ -1,3 +1,13 @@
+# =============================================================================
+# The code analyses the central banks' speeches from across the world
+# Things to note
+# - The results of the graphs can not be replicated as BERTopic modelling is stochastic
+# - The manual steps of assigning labels has been done to visualie graphs in human readable format
+
+# =============================================================================
+
+## Importing libraries and seting up environment
+
 from datetime import datetime
 import os
 import re
@@ -23,6 +33,17 @@ from hdbscan import HDBSCAN
 
 load_dotenv()
 
+os.makedirs("plots", exist_ok=True)
+os.makedirs("models", exist_ok=True)
+
+output_dir_plots = "plots"
+output_dir_models = "models"
+
+# =============================================================================
+# Defining functions
+# =============================================================================
+
+## function for BERtopic modelling
 def bertopic_modeling(
     docs,
     embeddings,
@@ -66,6 +87,7 @@ def bertopic_modeling(
     topics, probabilities = topic_model.fit_transform(docs, embeddings)
     return topic_model, topics, probabilities
 
+## Plotting function
 def plot_bar_chart(data, x_label, y_label, title, output_dir, filename, kind='bar', horizontal=False):
     plt.figure(figsize=(5, 5))
     if horizontal:
@@ -84,13 +106,13 @@ def plot_bar_chart(data, x_label, y_label, title, output_dir, filename, kind='ba
     plt.savefig(png_path, format='png', dpi=300, bbox_inches='tight')
     print("Saved to", pdf_path)
 
-os.makedirs("plots", exist_ok=True)
-os.makedirs("models", exist_ok=True)
+# =============================================================================
+# EDA
+# =============================================================================
 
+# All banks' speeches
 df = pd.read_parquet("hf://datasets/tpark-bis/central_bank_speeches/central_bank_speeches.parquet")
 df.drop(columns=["topic_vector"], inplace=True)
-output_dir_plots = "plots"
-output_dir_models = "models"
 
 central_bank_counts = df['country_iso2'].value_counts()
 formatted_list = [f"{bank} ({count})" for bank, count in central_bank_counts.items()]
@@ -101,23 +123,27 @@ df_affiliation = df['country_iso2'].value_counts().reset_index()
 df_affiliation.columns = ['Central bank', 'Count']
 df_affiliation['Count'] = df_affiliation['Count'].astype(int)
 
+## Fig 1a
 df_affiliation = df_affiliation.set_index('Central bank')
 central_bank_counts = df_affiliation['Count'].sort_values(ascending=False).head(10)
 plot_bar_chart(central_bank_counts, "Location of central bank", "# of speeches", "", output_dir_plots, "fig_stat_by_cb", kind='bar')
 
+## Fig 1b
 df['date'] = pd.to_datetime(df['date'])
 counts_by_year = df['date'].dt.year.value_counts().sort_index()
 counts_by_year.index = counts_by_year.index.map(lambda x: f"{x % 100:02d}")
 plot_bar_chart(counts_by_year, "Year", "# of speeches", "", output_dir_plots, "fig_stat_by_year", kind='bar')
 
+## Fig 1c
 top_authors = df['speaker'].value_counts().head(10)
 plot_bar_chart(top_authors, "# of speeches", "Speaker", "", output_dir_plots, "fig_stat_by_speaker", kind='barh', horizontal=True)
 
 
+# =============================================================================
+# Analysis 1a: Major central banks
+# =============================================================================
 
-
-
-
+# Major banks data
 major_central_banks = ["AU", "CA", "DK", "EU", "JP", "NZ", "NO", "SE", "CH", "GB", "US", "DZ", "AR", "BR", "CL", "CN", "CO", "CZ", "HK", "HU", "IN", "ID", "IL", "KR", "KW", "MY", "MX", "MA", "PE", "PH", "PL", "RO", "RU", "SA", "SG", "ZA", "TH", "TR", "AE", "VN"]
 major_bank = df[df['country_iso2'].isin(major_central_banks)].copy()
 major_bank.reset_index(drop=True, inplace=True)
@@ -125,6 +151,7 @@ docs = major_bank['summary'].tolist()
 major_bank_embeddings = major_bank['embeddings'].tolist()
 major_bank_embeddings = np.array(major_bank_embeddings)
 
+# BERTopic modelling
 topic_model, topics, probabilities = bertopic_modeling(
     docs=docs,
     embeddings=major_bank_embeddings,
@@ -138,28 +165,33 @@ topic_model, topics, probabilities = bertopic_modeling(
     umap_random_state=23,
 )
 
+# Retrieve topic information (e.g., topic IDs, sizes, labels)
 df_topic = topic_model.get_topic_info()
+# Reduce embeddings to 2D for visualization
 reduced_embeddings = UMAP(n_components=2, n_neighbors=30, min_dist=0.6, random_state=42).fit_transform(major_bank_embeddings)
+# Visualize the documents in 2D space
 topic_model.visualize_documents(docs, reduced_embeddings=reduced_embeddings, hide_document_hover=True, hide_annotations=True)
+# Add the reduced embedding coordinates to the dataset
 df_reduced_embeddings = pd.DataFrame(reduced_embeddings, columns=['x', 'y'])
 major_bank['x'] = df_reduced_embeddings['x']
 major_bank['y'] = df_reduced_embeddings['y']
+# Save the topic model with a timestamped filename
 current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
 model_name = f"{output_dir_models}/G1_model_{current_datetime}"
 topic_model.save(model_name, serialization="safetensors")
 print(model_name)
-
+# Extract the c-TF-IDF matrix for topic analysis
 ctfidf_matrix = topic_model.c_tf_idf_
 feature_names = topic_model.vectorizer_model.get_feature_names_out()
 ctfidf_dense = ctfidf_matrix.todense()
 ctfidf_df = pd.DataFrame(ctfidf_dense, columns=feature_names)
+# Create a DataFrame to store the top 30 keywords for each topic
 top_30_df = pd.DataFrame(columns=["Keyword_Ranking"])
-
 for i in range(len(topic_model.generate_topic_labels())):
     top_terms = ctfidf_df.loc[i].sort_values(ascending=False).head(30)
     lst_top_terms = top_terms.index.tolist()
     top_30_df = pd.concat([top_30_df, pd.DataFrame({"topic_vector": [lst_top_terms]})], ignore_index=True)
-    
+# Merge the topic information with the top keywords
 df_topic = pd.merge(df_topic, top_30_df, how='left', left_index=True, right_index=True)
 df_res = pd.DataFrame({'Topic': topics, 'Probability': probabilities})
 df_res = df_res.merge(df_topic, how='left', on='Topic')
@@ -168,13 +200,14 @@ major_bank = pd.merge(major_bank, df_res, left_index=True, right_index=True, how
 file_path = r'Major_Bank_Topics_20250511_234633.parquet'
 df_major_topic = major_bank
 #df_major_topic = pd.read_parquet(file_path)
+# Select relevant columns for the final dataset
 df_major_topic = df_major_topic[['date', 'title', 'summary', 'speaker', 'affiliation', 'x', 'y', 'Name', 'Representation', 'Topic', 'topic_vector', 'Probability', 'country_iso2']]
 df_major_topic_list = df_major_topic[['Name', 'topic_vector', 'Topic']]
 df_major_topic_list = df_major_topic_list.drop_duplicates(subset=['Topic'])
 df_major_topic_list.reset_index(drop=True, inplace=True)
 df_major_topic_list = df_major_topic_list.sort_values(by='Topic')
 
-
+# Define a mapping of topic names to human-readable labels
 ### PLACEHOLDER - Create your own mappings here
 NAME_TO_LABEL = {
     "-1_Financial stability policies": "General",
@@ -231,8 +264,10 @@ NAME_TO_LABEL = {
 
 #df_major_topic_list['Label'] = df_major_topic_list['Name'].map(name_to_label)
 #df_major_topic_list['Label'] = df_major_topic_list['Topic'].astype(str) + '_' + df_major_topic_list['Label']
+
 df_major_topic_list['Label'] = df_major_topic_list['Name']
 
+# Fig 2
 df_major_topic = pd.merge(df_major_topic, df_major_topic_list[['Name', 'Label']], how='left', on='Name')
 unique_names = sorted(df_major_topic['Label'].unique())
 base_colors = list(cm.tab20.colors) + list(cm.tab20b.colors) + list(cm.tab20c.colors)
@@ -250,7 +285,7 @@ for name in unique_names:
     else:
         color_map[name] = next(color_iter)
 
-x_marker_prefixes = ["3_", "5_", "7_", "18_", "21_", "23_", "25_", "26_", "27_", "34_", "35_", "37_", "39_", "40_", "41_", "42_", "44_", "45_", "48_"]
+x_marker_prefixes = ["3_", "5_", "7_", "18_", "21_", "23_", "25_", "26_", "27_", "34_", "35_", "37_", "39_", "40_", "41_", "42_", "44_", "45_", "48_"] # Customising markers to differentiate non-regional clusters
 x_marker_list = [
     group['Label'].iloc[0]
     for prefix in x_marker_prefixes
@@ -259,6 +294,7 @@ x_marker_list = [
 ]
 x_marker_set = set(x_marker_list)
 
+# Helper function to extract numerical prefixes from label
 def num_prefix(name):
     m = re.match(r'\s*([\-]?\d+)', name)
     return int(m.group(1)) if m else None
@@ -294,12 +330,18 @@ ax.legend(handles_sorted, labels_sorted, bbox_to_anchor=(0.5, 0.05), loc='upper 
 
 plt.subplots_adjust(bottom=0.28)
 
+# Save the graphs
 pdf_path = f'{output_dir_plots}/fig_global_topic.pdf'
 png_path = f'{output_dir_plots}/fig_global_topic.png'
 fig.savefig(pdf_path, format='pdf', bbox_inches='tight')
 fig.savefig(png_path, format='png', dpi=300, bbox_inches='tight')
 print("Saved to", pdf_path)
 
+# =============================================================================
+# Analysis 1b: Major central banks topc analysis
+# =============================================================================
+
+# Filter topics of interest
 prefixes = ('18_', '45_', '25_', '5_', '21_', '7_')
 filtered_df = df_major_topic[df_major_topic['Label'].str.startswith(prefixes)]
 
@@ -347,6 +389,8 @@ manual_order = [
 
 pivot_df = pivot_df.reindex(manual_order)
 
+# Fig 3a
+
 custom_colors = [
     "#1f77b4",
     "#ff7f0e",
@@ -392,6 +436,8 @@ fig.savefig(pdf_path, format='pdf', bbox_inches='tight')
 fig.savefig(png_path, format='png', dpi=300, bbox_inches='tight')
 
 print("Saved to", pdf_path)
+
+# Fig 3b
 
 df_filtered = df_major_topic[df_major_topic['Label'].str.startswith(('18_', '3_', '26_', '44_', '39_'))]
 
@@ -460,85 +506,11 @@ fig.savefig(png_path, format='png', dpi=300, bbox_inches='tight')
 
 print("Saved to", pdf_path)
 
-ecb = major_bank[(major_bank['affiliation'] == 'European Central Bank')]
-ecb = ecb.reset_index(drop=True)
-ecb = ecb.iloc[:, :12]
+# =============================================================================
+# Analysis 2: ECB communications
+# =============================================================================
 
-ecb_docs = ecb['summary'].tolist()
-ecb_embeddings = ecb['embeddings'].tolist()
-ecb_embeddings = np.array(ecb_embeddings)
-
-topic_model, topics, probabilities = bertopic_modeling(
-    docs=ecb_docs,
-    embeddings=ecb_embeddings,
-    n_gram_range=(1, 2),
-    min_cluster_size=30,
-    umap_n_neighbors=3,
-    umap_n_components=20,
-    umap_min_dist=0,
-    umap_metric='euclidean',
-    umap_random_state=42,
-)
-
-df_topic_ecb = topic_model.get_topic_info()
-reduced_embeddings = UMAP(n_components=2, n_neighbors=20, min_dist=0.5, random_state=42).fit_transform(ecb_embeddings)
-topic_model.visualize_documents(ecb_docs, reduced_embeddings=reduced_embeddings, hide_document_hover=True, hide_annotations=True)
-df_reduced_embeddings_ecb = pd.DataFrame(reduced_embeddings, columns=['x', 'y'])
-ecb['x'] = df_reduced_embeddings_ecb['x']
-ecb['y'] = df_reduced_embeddings_ecb['y']
-
-current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-model_name = f"{output_dir_models}/G2A_model_{current_datetime}"
-topic_model.save(model_name, serialization="safetensors")
-print(model_name)
-
-ctfidf_matrix = topic_model.c_tf_idf_
-feature_names = topic_model.vectorizer_model.get_feature_names_out()
-ctfidf_dense = ctfidf_matrix.todense()
-ctfidf_df = pd.DataFrame(ctfidf_dense, columns=feature_names)
-
-top_30_df = pd.DataFrame(columns=["Keyword_Ranking"])
-for i in range(len(topic_model.generate_topic_labels())):
-    top_terms = ctfidf_df.loc[i].sort_values(ascending=False).head(30)
-    lst_top_terms = top_terms.index.tolist()
-    top_30_df = pd.concat([top_30_df, pd.DataFrame({"topic_vector": [lst_top_terms]})], ignore_index=True)
-
-df_topic_ecb = pd.merge(df_topic_ecb, top_30_df, how='left', left_index=True, right_index=True)
-
-df_res = pd.DataFrame({'Topic': topics, 'Probability': probabilities})
-df_res = df_res.merge(df_topic_ecb, how='left', on='Topic')
-ecb = pd.merge(ecb, df_res, left_index=True, right_index=True, how='left')
-
-df_ecb_topic_list = df_topic_ecb[['Name', 'topic_vector', 'Topic']]
-df_ecb_topic_list = df_ecb_topic_list.drop_duplicates(subset=['Topic'])
-df_ecb_topic_list.reset_index(drop=True, inplace=True)
-df_ecb_topic_list = df_ecb_topic_list.sort_values(by='Topic')
-
-
-### PLACEHOLDER - Create your own mappings here
-TOPIC_TO_LABEL = {
-    -1: "General",
-     0: "Monetary policy",
-     1: "Financial stability",
-     2: "Monetary policy",
-     3: "Eurozone integration",
-     4: "Monetary policy",
-     5: "Price stability",
-     6: "Banking supervision",
-     7: "Pandemic response",
-     8: "Economic outlook",
-     9: "Financial integration",
-    10: "Euro adoption",
-    11: "Climate change",
-    12: "Governance",
-    13: "Monetary policy",
-    14: "Monetary policy",
-    15: "Study of MP Impact on Households",
-    16: "Payment",
-    17: "Structural reform",
-    18: "Liquidity",
-    19: "Integration challenges"
-}
+# Function to plot ECB topics
 def plot_ecb_topics(ecb, topic_to_label, output_dir, filename):
     df_ecb_topic_list = ecb[['Name', 'Topic']].drop_duplicates()
     # df_ecb_topic_list['Label'] = df_ecb_topic_list['Topic'].map(topic_to_label)
@@ -604,7 +576,98 @@ def plot_ecb_topics(ecb, topic_to_label, output_dir, filename):
 
     return ecb
 
+# ECB data
+ecb = major_bank[(major_bank['affiliation'] == 'European Central Bank')]
+ecb = ecb.reset_index(drop=True)
+ecb = ecb.iloc[:, :12]
+
+ecb_docs = ecb['summary'].tolist()
+ecb_embeddings = ecb['embeddings'].tolist()
+ecb_embeddings = np.array(ecb_embeddings)
+
+# BERTopic modelling
+topic_model, topics, probabilities = bertopic_modeling(
+    docs=ecb_docs,
+    embeddings=ecb_embeddings,
+    n_gram_range=(1, 2),
+    min_cluster_size=30,
+    umap_n_neighbors=3,
+    umap_n_components=20,
+    umap_min_dist=0,
+    umap_metric='euclidean',
+    umap_random_state=42,
+)
+
+df_topic_ecb = topic_model.get_topic_info()
+reduced_embeddings = UMAP(n_components=2, n_neighbors=20, min_dist=0.5, random_state=42).fit_transform(ecb_embeddings)
+topic_model.visualize_documents(ecb_docs, reduced_embeddings=reduced_embeddings, hide_document_hover=True, hide_annotations=True)
+df_reduced_embeddings_ecb = pd.DataFrame(reduced_embeddings, columns=['x', 'y'])
+ecb['x'] = df_reduced_embeddings_ecb['x']
+ecb['y'] = df_reduced_embeddings_ecb['y']
+
+current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
+model_name = f"{output_dir_models}/G2A_model_{current_datetime}"
+topic_model.save(model_name, serialization="safetensors")
+print(model_name)
+
+ctfidf_matrix = topic_model.c_tf_idf_
+feature_names = topic_model.vectorizer_model.get_feature_names_out()
+ctfidf_dense = ctfidf_matrix.todense()
+ctfidf_df = pd.DataFrame(ctfidf_dense, columns=feature_names)
+
+top_30_df = pd.DataFrame(columns=["Keyword_Ranking"])
+for i in range(len(topic_model.generate_topic_labels())):
+    top_terms = ctfidf_df.loc[i].sort_values(ascending=False).head(30)
+    lst_top_terms = top_terms.index.tolist()
+    top_30_df = pd.concat([top_30_df, pd.DataFrame({"topic_vector": [lst_top_terms]})], ignore_index=True)
+
+df_topic_ecb = pd.merge(df_topic_ecb, top_30_df, how='left', left_index=True, right_index=True)
+
+df_res = pd.DataFrame({'Topic': topics, 'Probability': probabilities})
+df_res = df_res.merge(df_topic_ecb, how='left', on='Topic')
+ecb = pd.merge(ecb, df_res, left_index=True, right_index=True, how='left')
+
+df_ecb_topic_list = df_topic_ecb[['Name', 'topic_vector', 'Topic']]
+df_ecb_topic_list = df_ecb_topic_list.drop_duplicates(subset=['Topic'])
+df_ecb_topic_list.reset_index(drop=True, inplace=True)
+df_ecb_topic_list = df_ecb_topic_list.sort_values(by='Topic')
+
+# Define a mapping of topic IDs to descriptive labels
+### PLACEHOLDER - Create your own mappings here
+TOPIC_TO_LABEL = {
+    -1: "General",
+     0: "Monetary policy",
+     1: "Financial stability",
+     2: "Monetary policy",
+     3: "Eurozone integration",
+     4: "Monetary policy",
+     5: "Price stability",
+     6: "Banking supervision",
+     7: "Pandemic response",
+     8: "Economic outlook",
+     9: "Financial integration",
+    10: "Euro adoption",
+    11: "Climate change",
+    12: "Governance",
+    13: "Monetary policy",
+    14: "Monetary policy",
+    15: "Study of MP Impact on Households",
+    16: "Payment",
+    17: "Structural reform",
+    18: "Liquidity",
+    19: "Integration challenges"
+}
+
+
+# Fig 4
 ecb = plot_ecb_topics(ecb, TOPIC_TO_LABEL, output_dir="plots", filename="fig_ecb_topics")
+
+
+# =============================================================================
+# Analysis 3: ECB monetary policy communications
+# =============================================================================
+
+# Manually filter ECB monetary policy-related topics for focused analysis
 ecb_mp = ecb[
     (ecb["Name"].str.contains(r"\b(0_|2_|4_|5_|7_|13_|14_)", regex=True)) &
     (~ecb["Name"].str.startswith("-1_"))
@@ -615,6 +678,7 @@ ecbmp_docs = ecb_mp['summary'].tolist()
 ecbmp_embeddings = ecb_mp['embeddings'].tolist()
 ecbmp_embeddings = np.array(ecbmp_embeddings)
 
+# BERTopic modelling
 topic_model, topics, probabilities = bertopic_modeling(
     docs=ecbmp_docs,
     embeddings=ecbmp_embeddings,
@@ -651,13 +715,13 @@ df_res = pd.DataFrame({'Topic': topics, 'Probability': probabilities})
 df_res = df_res.merge(df_topic_ecb_mp, how='left', on='Topic')
 
 
-
 ecb_mp = ecb_mp.drop(columns=['Topic', 'Probability', 'Count', 'Name',
                               'Representation', 'Representative_Docs', 'Keyword_Ranking',
                               'topic_vector'])
 
 ecb_mp = pd.merge(ecb_mp, df_res, left_index=True, right_index=True, how='left')
 
+# Fig 5a
 fig = px.scatter_3d(
     ecb_mp,
     x='x',
@@ -727,6 +791,8 @@ fig.savefig(png_path, format='png', dpi=300, bbox_inches='tight')
 
 print("Saved to", pdf_path)
 
+
+# Fig 5b
 file_path = "euro_area_cpi.csv"  # Path to your local file
 df = pd.read_csv(file_path, index_col=0, parse_dates=True)  # Load the data, parsing the index as dates
 
