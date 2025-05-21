@@ -6,7 +6,7 @@
 This project analyses central bank speeches to uncover patterns, trends, and topics of interest. Using advanced natural language processing (NLP) techniques, such as BERTopic and UMAP, it clusters and visualises speech data to provide insights into central bank policies and economic discussions.
 This repository contanis the code for the analysis and visualisations presented in the paper "Central Bank Speeches: A space of Central Bankers' Ideas" by Taejin Park, Fernando Perez-Cruz and Hyun Song Shin. The research utilises a comprehensive dataset of around 20,000 central bank speeches from over 100 central banks spanning from 1987 to 2025.
 <p align="center">
-  <img src="3d_topic.png" alt="3D Topic Visualization" width="70%">
+  <img src="fig_global_topic.png" alt="Global topic distribution of central bank communications (1987-2025)" width="100%">
 </p>
 
 ## Dataset
